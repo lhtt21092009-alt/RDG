@@ -16,19 +16,7 @@ jobs:
         run: |
           sudo apt install -y openjdk-21-jdk
 
-      - name: Cài đặt TLauncher
-        run: |
-          mkdir -p $HOME/TLauncher
-          wget -O tlauncher.zip https://tlauncher.org/installer-linux
-          unzip tlauncher.zip -d $HOME/TLauncher
-          # Cấp quyền thực thi cho file .jar
-          chmod +x $HOME/TLauncher/*.jar
-          
-          # Tạo shortcut ngoài Desktop ảo để mở nhanh
-          mkdir -p ~/Desktop
-          JAR_PATH=$(ls $HOME/TLauncher/*.jar | head -n 1)
-          echo -e "[Desktop Entry]\nName=TLauncher\nExec=/opt/jdk-25/bin/java -jar $JAR_PATH\nType=Application\nTerminal=false\nIcon=java" > ~/Desktop/TLauncher.desktop
-          chmod +x ~/Desktop/TLauncher.desktop
+
 
       - name: Cài đặt noVNC
         run: |
