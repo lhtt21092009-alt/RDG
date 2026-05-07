@@ -14,15 +14,7 @@ jobs:
           
       - name: Cài đặt Java 25 (Early Access)
         run: |
-          # Tải Java 25 từ OpenJDK EA
-          wget https://download.java.net/java/early_access/jdk25/archive/latest/linux-x64_bin.tar.gz
-          tar -xvf linux-x64_bin.tar.gz
-          # Tìm tên thư mục vừa giải nén (ví dụ jdk-25)
-          JDK_DIR=$(ls -d jdk-*/)
-          sudo mv "$JDK_DIR" /opt/jdk-25
-          # Cập nhật biến môi trường cho các bước sau
-          echo "JAVA_HOME=/opt/jdk-25" >> $GITHUB_ENV
-          echo "/opt/jdk-25/bin" >> $GITHUB_PATH
+          sudo apt install -y openjdk-21-jdk
 
       - name: Cài đặt TLauncher
         run: |
