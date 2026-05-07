@@ -1,69 +1,43 @@
-name: GitHub-noVNC-Java-TLauncher-Deb
+name: Ubuntu_Cloudflare_QuickTunnel
 
-on: 
-  workflow_dispatch:
+on: workflow_dispatch
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Chuẩn bị hệ thống & Cài đặt Java
+      - name: Install Desktop Environment
         run: |
           sudo apt update
-          # Cài đặt môi trường đồ họa và công cụ hỗ trợ
-          sudo apt install -y xfce4 xfce4-goodies tightvncserver python3-pip git wget
-          # Cài đặt Java 21 qua apt (Sudo apt trực tiếp)
+          sudo apt install -y xfce4 xfce4-goodies tightvncserver
           sudo apt install -y openjdk-21-jdk
           java -version
-
       - name: Cài đặt TLauncher (.deb)
         run: |
           # Tải file .deb trực tiếp từ link bạn cung cấp
           wget -O tlauncher.deb https://tlauncher.org/installer-linux
-          
-          # Cài đặt file .deb. 
-          # Lưu ý: Nếu có lỗi phụ thuộc (dependencies), dùng 'apt install -f' để sửa
           sudo dpkg -i tlauncher.deb || sudo apt install -f -y
+      - name: Install noVNC
+        run: |
+          git clone https://github.com/novnc/noVNC.git
+          cp noVNC/vnc.html noVNC/index.html
           
-          # Thông thường TLauncher sau khi cài sẽ nằm trong /usr/bin/tlauncher hoặc tương tự
-          # Tạo shortcut trên màn hình Desktop ảo
-          mkdir -p ~/Desktop
-          echo -e "[Desktop Entry]\nName=TLauncher\nExec=tlauncher\nType=Application\nTerminal=false\nIcon=java" > ~/Desktop/TLauncher.desktop
-          chmod +x ~/Desktop/TLauncher.desktop
-
-      - name: Cài đặt noVNC
+      - name: Install Cloudflared
         run: |
-          git clone https://github.com/novnc/noVNC.git $HOME/noVNC
-          cp $HOME/noVNC/vnc.html $HOME/noVNC/index.html
-          git clone https://github.com/novnc/websockify $HOME/noVNC/utils/websockify
+          curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared.deb
 
-      - name: Thiết lập VNC Server
+      - name: Setup VNC and Quick Tunnel
         run: |
+          # Thiết lập mật khẩu VNC là 123456
           mkdir -p ~/.vnc
-          echo "password" | vncpasswd -f > ~/.vnc/passwd
+          echo "123456" | vncpasswd -f > ~/.vnc/passwd
           chmod 600 ~/.vnc/passwd
-          echo -e "#!/bin/bash\nstartxfce4 &" > ~/.vnc/xstartup
-          chmod +x ~/.vnc/xstartup
-          vncserver :1 -geometry 1280x720 -depth 24
-
-      - name: Chạy noVNC
-        run: |
-          $HOME/noVNC/utils/launch.sh --vnc localhost:5901 --listen 6080 &
-
-      - name: Thiết lập Cloudflare Quick Tunnel
-        run: |
-          wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
-          sudo dpkg -i cloudflared-linux-amd64.deb
-          cloudflared tunnel --url http://localhost:6080 > cloudflare.log 2>&1 &
-
-      - name: Lấy Link Truy Cập và Duy Trì
-        run: |
-          echo "Đang đợi Cloudflare khởi tạo link..."
-          sleep 15
-          echo "===================================================="
-          echo "MẬT KHẨU VNC: password"
-          echo "LINK TRUY CẬP CỦA BẠN DƯỚI ĐÂY:"
-          grep -o 'https://[-0-9a-z]*\.trycloudflare.com' cloudflare.log
-          echo "===================================================="
-          # Duy trì máy chạy (6 tiếng)
-          sleep 21600
+          tightvncserver :1
+          
+          # Chạy noVNC proxy
+          ./noVNC/utils/novnc_proxy --vnc localhost:5901 --listen 6080 &
+          
+          # Kích hoạt Quick Tunnel
+          echo "Đợi một lát để lấy URL..."
+          cloudflared tunnel --url http://localhost:6080
