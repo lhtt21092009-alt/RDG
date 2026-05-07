@@ -1,0 +1,78 @@
+name: GitHub-noVNC-Java25-TLauncher
+
+on: 
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chuẩn bị hệ thống
+        run: |
+          sudo apt update
+          sudo apt install -y xfce4 xfce4-goodies tightvncserver python3-pip git wget unzip
+          
+      - name: Cài đặt Java 25 (Early Access)
+        run: |
+          # Tải Java 25 từ OpenJDK EA
+          wget https://download.java.net/java/early_access/jdk25/archive/latest/linux-x64_bin.tar.gz
+          tar -xvf linux-x64_bin.tar.gz
+          # Tìm tên thư mục vừa giải nén (ví dụ jdk-25)
+          JDK_DIR=$(ls -d jdk-*/)
+          sudo mv "$JDK_DIR" /opt/jdk-25
+          # Cập nhật biến môi trường cho các bước sau
+          echo "JAVA_HOME=/opt/jdk-25" >> $GITHUB_ENV
+          echo "/opt/jdk-25/bin" >> $GITHUB_PATH
+
+      - name: Cài đặt TLauncher
+        run: |
+          mkdir -p $HOME/TLauncher
+          wget -O tlauncher.zip https://tlauncher.org/installer-linux
+          unzip tlauncher.zip -d $HOME/TLauncher
+          # Cấp quyền thực thi cho file .jar
+          chmod +x $HOME/TLauncher/*.jar
+          
+          # Tạo shortcut ngoài Desktop ảo để mở nhanh
+          mkdir -p ~/Desktop
+          JAR_PATH=$(ls $HOME/TLauncher/*.jar | head -n 1)
+          echo -e "[Desktop Entry]\nName=TLauncher\nExec=/opt/jdk-25/bin/java -jar $JAR_PATH\nType=Application\nTerminal=false\nIcon=java" > ~/Desktop/TLauncher.desktop
+          chmod +x ~/Desktop/TLauncher.desktop
+
+      - name: Cài đặt noVNC
+        run: |
+          git clone https://github.com/novnc/noVNC.git $HOME/noVNC
+          cp $HOME/noVNC/vnc.html $HOME/noVNC/index.html
+          git clone https://github.com/novnc/websockify $HOME/noVNC/utils/websockify
+
+      - name: Thiết lập VNC Server
+        run: |
+          mkdir -p ~/.vnc
+          echo "password" | vncpasswd -f > ~/.vnc/passwd
+          chmod 600 ~/.vnc/passwd
+          # Tạo script khởi động xfce4 khi VNC chạy
+          echo -e "#!/bin/bash\nstartxfce4 &" > ~/.vnc/xstartup
+          chmod +x ~/.vnc/xstartup
+          vncserver :1 -geometry 1280x720 -depth 24
+
+      - name: Chạy noVNC qua Port 6080
+        run: |
+          $HOME/noVNC/utils/launch.sh --vnc localhost:5901 --listen 6080 &
+
+      - name: Thiết lập Tunnel (Loophole)
+        # Sử dụng Loophole vì không cần token phức tạp như Ngrok
+        run: |
+          wget https://github.com/loophole/cli/releases/download/1.0.0-beta.15/loophole_1.0.0-beta.15_linux_64bit.tar.gz
+          tar -xvf loophole_1.0.0-beta.15_linux_64bit.tar.gz
+          chmod +x loophole
+          ./loophole http 6080 --hostname rdp-vn-java25 &
+          
+      - name: Giữ cho Workflow không bị tắt
+        run: |
+          echo "===================================="
+          echo "VNC đang chạy tại port 6080"
+          echo "Dùng link từ Loophole để truy cập"
+          echo "Mật khẩu VNC là: password"
+          echo "Java 25 và TLauncher đã sẵn sàng trên Desktop"
+          echo "===================================="
+          # Vòng lặp duy trì máy ảo trong 6 tiếng (giới hạn GitHub)
+          sleep 21600
